@@ -10,16 +10,73 @@ inputs:
     required: true
   arch:
     description: Flatpak arch to build
+    default: x86_64
     required: true
   branch:
     description: Flatpak branch to build
     default: stable
     required: true
 outputs:
-  build_dir:
+  build-dir:
+    value: ${{ steps.build.outputs.build-dir }}
     description: Build directory
-  build_repo:
+  build-repo:
+    value: ${{ steps.build.outputs.build-repo }}
     description: OSTree repo with exported build
 runs:
-  using: docker
-  image: Dockerfile
+  using: composite
+  steps:
+    - id: install-deps
+      shell: bash
+      run: |
+        set -e
+        sudo add-apt-repository -y ppa:alexlarsson/flatpak
+        sudo apt update -y
+        sudo apt install -y flatpak-builder
+    
+    - id: find-manifest
+      shell: bash
+      env:
+        FLATPAK_ID: ${{ inputs.id }}
+      run: |
+        set -e
+        if [ -f "$FLATPAK_ID.json" ]; then
+            MANIFEST="$FLATPAK_ID.json"
+        elif [ -f "$FLATPAK_ID.yml" ]; then
+            MANIFEST="$FLATPAK_ID.yml"
+        elif [ -f "$FLATPAK_ID.yaml" ]; then
+            MANIFEST="$FLATPAK_ID.yaml"
+        else
+            exit 1
+        fi
+        echo "::set-output name=manifest::$MANIFEST"
+
+    - id: install-sdk
+      shell: bash
+      run: |
+        set -e
+        flatpak remote-add --user --if-not-exists \
+                flathub https://flathub.org/repo/flathub.flatpakrepo
+        flatpak-builder --install-deps-from=flathub --install-deps-only --user /dev/null \
+                        ${{ steps.find-manifest.outputs.manifest }}
+
+    - id: download-sources
+      shell: bash
+      run: |
+        flatpak-builder --download-only /dev/null \
+                        ${{ steps.find-manifest.outputs.manifest }}
+
+    - id: build
+      shell: bash
+      env:
+        FP_BUILD_DIR: build-dir
+        FP_BUILD_REPO: build-repo
+      run: |
+        set -e
+        flatpak-builder --disable-updates --disable-download --ccache --sandbox \
+                        --default-branch=${{ inputs.branch }} \
+                        --arch=${{ inputs.arch }} \
+                        --repo=${FP_BUILD_REPO} ${FP_BUILD_DIR} \
+                        ${{ steps.find-manifest.outputs.manifest }}
+        echo "::set-output name=build-dir::${FP_BUILD_DIR}"
+        echo "::set-output name=build-repo::${FP_BUILD_REPO}"
