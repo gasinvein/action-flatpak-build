@@ -1,0 +1,25 @@
+name: flatpak-build
+description: Build flatpak
+inputs:
+  kind:
+    description: Flatpak ref kind (app or runtime)
+    default: app
+    required: true
+  id:
+    description: Flatpak ID
+    required: true
+  arch:
+    description: Flatpak arch to build
+    required: true
+  branch:
+    description: Flatpak branch to build
+    default: stable
+    required: true
+outputs:
+  build_dir:
+    description: Build directory
+  build_repo:
+    description: OSTree repo with exported build
+runs:
+  using: docker
+  image: Dockerfile
