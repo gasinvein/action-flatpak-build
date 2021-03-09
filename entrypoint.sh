@@ -35,7 +35,7 @@ flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flath
 
 flatpak-builder --install-deps-from=flathub --install-deps-only --user /dev/null "$MANIFEST"
 flatpak-builder --download-only /dev/null "$MANIFEST"
-flatpak-builder --disable-updates --disable-download --ccache --sandbox \
+flatpak-builder --disable-updates --disable-download --ccache --sandbox --disable-rofiles-fuse \
                 --repo="${FP_BUILD_REPO}" "${FP_BUILD_DIR}" "$MANIFEST"
 
 echo "::set-output name=build_dir::${FP_BUILD_DIR}"
