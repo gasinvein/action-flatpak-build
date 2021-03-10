@@ -26,14 +26,6 @@ outputs:
 runs:
   using: composite
   steps:
-    - id: install-deps
-      shell: bash
-      run: |
-        set -e
-        sudo add-apt-repository -y ppa:alexlarsson/flatpak
-        sudo apt update -y
-        sudo apt install -y flatpak-builder
-    
     - id: find-manifest
       shell: bash
       env:
