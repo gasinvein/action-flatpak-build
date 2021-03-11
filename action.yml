@@ -51,22 +51,21 @@ runs:
       shell: bash
       run: |
         set -e
-        read -a REPO_URLS <<<"${{ inputs.runtime-repos }}"
-        REPO_NAMES=()
+        set -x
+        mapfile -t REPO_URLS < <(grep . <<<"${{ inputs.runtime-repos }}")
         for repo_url in "${REPO_URLS[@]}"; do
           repo_file="${repo_url##*/}"
           repo_name="${repo_file%.flatpakrepo}"
-          flatpak remote-add --user --if-not-exists "$repo_name" "$repo_url"
-          REPO_NAMES+=("$repo_name")
+          flatpak remote-add --user --if-not-exists --from "$repo_name" "$repo_url"
         done
-        echo "::set-output name=repo-names::${REPO_NAMES[@]}"
 
     - id: install-sdk
       shell: bash
       run: |
         set -e
-        read -a REPO_NAMES <<<"${{ steps.add-repos.outputs.repo-names }}"
-        flatpak-builder $(printf -- '--install-deps-from=%s ' $REPO_NAMES) \
+        set -x
+        mapfile -t REPO_NAMES < <(flatpak remote-list --user --columns=name)
+        flatpak-builder $(printf -- '--install-deps-from=%s ' ${REPO_NAMES[@]}) \
                         --install-deps-only --user /dev/null \
                         ${{ steps.find-manifest.outputs.manifest }}
 
