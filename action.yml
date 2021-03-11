@@ -16,6 +16,10 @@ inputs:
     description: Flatpak branch to build
     default: stable
     required: true
+  runtime-repos:
+    description: .flatpakrepo URLs for dependency repos
+    default: https://flathub.org/repo/flathub.flatpakrepo
+    required: true
 outputs:
   build-dir:
     value: ${{ steps.build.outputs.build-dir }}
@@ -43,13 +47,27 @@ runs:
         fi
         echo "::set-output name=manifest::$MANIFEST"
 
+    - id: add-repos
+      shell: bash
+      run: |
+        set -e
+        read -a REPO_URLS <<<"${{ inputs.runtime-repos }}"
+        REPO_NAMES=()
+        for repo_url in "${REPO_URLS[@]}"; do
+          repo_file="${repo_url##*/}"
+          repo_name="${repo_file%.flatpakrepo}"
+          flatpak remote-add --user --if-not-exists "$repo_name" "$repo_url"
+          REPO_NAMES+=("$repo_name")
+        done
+        echo "::set-output name=repo-names::${REPO_NAMES[@]}"
+
     - id: install-sdk
       shell: bash
       run: |
         set -e
-        flatpak remote-add --user --if-not-exists \
-                flathub https://flathub.org/repo/flathub.flatpakrepo
-        flatpak-builder --install-deps-from=flathub --install-deps-only --user /dev/null \
+        read -a REPO_NAMES <<<"${{ steps.add-repos.outputs.repo-names }}"
+        flatpak-builder $(printf -- '--install-deps-from=%s ' $REPO_NAMES) \
+                        --install-deps-only --user /dev/null \
                         ${{ steps.find-manifest.outputs.manifest }}
 
     - id: download-sources
