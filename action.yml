@@ -24,6 +24,10 @@ inputs:
     description: Extra CLI args for flatpak-builder
     default: --ccache --sandbox
     required: true
+  manifest-path:
+    description: Path to the manifest (autodetected if empty)
+    default: ''
+    required: true
 outputs:
   build-dir:
     value: ${{ steps.build.outputs.build-dir }}
@@ -40,14 +44,18 @@ runs:
         FLATPAK_ID: ${{ inputs.id }}
       run: |
         set -e
-        if [ -f "$FLATPAK_ID.json" ]; then
-            MANIFEST="$FLATPAK_ID.json"
-        elif [ -f "$FLATPAK_ID.yml" ]; then
-            MANIFEST="$FLATPAK_ID.yml"
-        elif [ -f "$FLATPAK_ID.yaml" ]; then
-            MANIFEST="$FLATPAK_ID.yaml"
+        if [ -n "${{ inputs.manifest-path }}" ]; then
+          MANIFEST="${{ inputs.manifest-path }}"
         else
-            exit 1
+          if [ -f "$FLATPAK_ID.json" ]; then
+              MANIFEST="$FLATPAK_ID.json"
+          elif [ -f "$FLATPAK_ID.yml" ]; then
+              MANIFEST="$FLATPAK_ID.yml"
+          elif [ -f "$FLATPAK_ID.yaml" ]; then
+              MANIFEST="$FLATPAK_ID.yaml"
+          else
+              exit 1
+          fi
         fi
         echo "::set-output name=manifest::$MANIFEST"
 
